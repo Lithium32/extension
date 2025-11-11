@@ -107,9 +107,9 @@ class BusinessErrorMonitor {
     }
 
     handleAPIResponse(data) {
-        if (this.isBusinessError(data.url, data.responseData)) {
+        // if (this.isBusinessError(data.url, data.responseData)) {
             this.captureBusinessError(data);
-        }
+        // }
     }
 
     handleNetworkError(data) {
@@ -121,6 +121,7 @@ class BusinessErrorMonitor {
     }
 
     isBusinessError(url, responseData) {
+        debugger
         // 检查是否在忽略列表
         if (this.errorConfig.ignoreUrls.some(pattern => pattern.test(url))) {
             return false;
@@ -205,7 +206,7 @@ class BusinessErrorMonitor {
     }
 
     sendRealTimeNotification(error) {
-        const actionDescription = this.getActionDescription(error.triggeredBy);
+        const actionDescription = this.getActionDescription(error.data.triggeredBy);
         const errorMessage = error.responseData?.message || 
                            error.responseData?.msg || 
                            error.responseData?.error || 
@@ -214,14 +215,14 @@ class BusinessErrorMonitor {
         // 创建浏览器通知
         chrome.notifications.create(error.id, {
             type: 'basic',
-            iconUrl: 'icon48.png',
+            iconUrl: './image/icon.png',
             title: '🚨 业务错误告警',
             message: `操作 "${actionDescription}" 触发错误: ${errorMessage}`,
             priority: 2
         });
 
         // 可以在这里集成企业微信、钉钉等webhook通知
-        this.sendToWebhook(error);
+        // this.sendToWebhook(error);
     }
 
     sendToWebhook(error) {
