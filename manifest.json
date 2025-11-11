@@ -1,0 +1,44 @@
+{
+  "name": "Hello Extensions",
+  "description": "Base Level Extension",
+  "version": "1.0",
+  "manifest_version": 3,
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "./image/icon.png"
+  },
+   "host_permissions": [
+    "*://*.kdtx-test.itheima.net/*"
+  ],
+  "permissions": [
+    "storage",
+    "webRequest",
+    "notifications",
+    "activeTab",
+    "downloads"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "content_scripts": [
+    {
+      "js": ["./scripts/content_fetch.js"],
+      "matches": [
+        "http://kdtx-test.itheima.net/*"
+      ],
+      "run_at": "document_start", 
+       "world": "MAIN",
+      "all_frames": true
+    },
+    {
+      "matches": ["<all_urls>"],
+      "js": ["./scripts/bridge.js"],
+      "run_at": "document_start",
+      "world": "ISOLATED"  //隔离世界
+    }
+  ],
+  "background": {
+    "service_worker": "background_fetch.js"
+  }
+}
