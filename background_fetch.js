@@ -32,22 +32,6 @@ class BusinessErrorMonitor {
                 }
             ],
 
-            // 特定接口的业务规则
-            apiSpecificRules: {
-                '/api/login': {
-                    successField: 'success',
-                    codeField: 'code',
-                    successValues: [true, 1, 'success'],
-                    errorCodes: [40001, 40002, 40003]
-                },
-                '/api/payment': {
-                    successField: 'result',
-                    codeField: 'errCode',
-                    successValues: ['SUCCESS', 'success'],
-                    errorValues: ['FAILED', 'TIMEOUT', 'failed']
-                }
-            },
-
             // 忽略的接口
             ignoreUrls: [
                 /\.(jpg|jpeg|png|gif|svg|css|js|woff|woff2|ttf|eot)$/i,
@@ -62,9 +46,11 @@ class BusinessErrorMonitor {
     setupMessageListener() {
         chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             console.log('📩 Message received in background:', message.type);
+            // console.log('this is sendResponse=>',sendResponse);
             switch (message.type) {
+                // 以下处理来自content script的消息
                 case 'USER_ACTION':
-                    this.handleUserAction(message.action);
+                    this.handleUserAction(message.data);
                     sendResponse({ status: 'received' });
                     break;
                     
@@ -77,14 +63,29 @@ class BusinessErrorMonitor {
                     this.handleNetworkError(message.data);
                     sendResponse({ status: 'received' });
                     break;
-                    
+
+                // 以下处理来自popup的消息
+                case 'GET_STATS':
+                    const stats = this.getStats();
+                    sendResponse({ status: 'success', data: stats });
+                    break;
+
                 case 'GET_REPORT':
-                    sendResponse(this.generateReport());
+                    sendResponse({
+                      status: "success",
+                      data: this.generateReport(),
+                    });
+                    break;
+                case 'GET_USER_ACTION_HISTORY':
+                    sendResponse({
+                      status: "success",
+                      data: this.userActions,
+                    });
                     break;
                     
                 case 'CLEAR_DATA':
                     this.clearData();
-                    sendResponse({ status: 'cleared' });
+                    sendResponse({ status: 'success' });
                     break;
                     
                 default:
@@ -95,21 +96,17 @@ class BusinessErrorMonitor {
 
     handleUserAction(action) {
         this.userActions.push(action);
-        
         // 限制存储数量
         if (this.userActions.length > 200) {
             this.userActions = this.userActions.slice(-100);
         }
-        
-        // if (window.debugMode) {
-            console.log('📝 User action stored:', action);
-        // }
+        console.log('📝 User action stored:', action);
     }
 
-    handleAPIResponse(data) {
-        // if (this.isBusinessError(data.url, data.responseData)) {
-            this.captureBusinessError(data);
-        // }
+    handleAPIResponse(errorData) {
+        if (this.isBusinessError(errorData.data.url, errorData.data.responseData)) {
+            this.captureBusinessError(errorData);
+        }
     }
 
     handleNetworkError(data) {
@@ -125,16 +122,6 @@ class BusinessErrorMonitor {
         // 检查是否在忽略列表
         if (this.errorConfig.ignoreUrls.some(pattern => pattern.test(url))) {
             return false;
-        }
-
-        // 检查特定接口规则
-        const apiRule = Object.keys(this.errorConfig.apiSpecificRules).find(apiPath => 
-            url.includes(apiPath)
-        );
-        
-        if (apiRule) {
-            const rule = this.errorConfig.apiSpecificRules[apiRule];
-            return this.checkSpecificRule(responseData, rule);
         }
 
         // 检查通用错误模式
@@ -297,6 +284,11 @@ class BusinessErrorMonitor {
     }
 
     generateReport() {
+        debugger
+        let totalUserActions = this.userActions.length;
+        let monitoringDuration = this.getMonitoringDuration();
+        let errorType = this.groupErrorsByType();
+        let topErrorAPIs = this.getTopErrorAPIs();
         const report = {
             generatedAt: new Date().toISOString(),
             summary: {
@@ -310,18 +302,18 @@ class BusinessErrorMonitor {
             },
             detailedErrors: this.businessErrors.map(error => ({
                 id: error.id,
-                timestamp: error.timestamp,
-                api: error.url,
-                method: error.method,
-                httpStatus: error.httpStatus,
-                responseTime: error.responseTime,
-                actionDescription: this.getActionDescription(error.triggeredBy),
-                userAction: error.triggeredBy,
-                requestData: error.requestData,
-                responseData: error.responseData,
+                timestamp: error.data.timestamp,
+                api: error.data.url,
+                method: error.data.method,
+                httpStatus: error.data.httpStatus,
+                responseTime: error.data.responseTime,
+                actionDescription: this.getActionDescription(error.data.triggeredBy),
+                userAction: error.data.triggeredBy,
+                requestData: error.data.requestData,
+                responseData: error.data.responseData,
                 pageInfo: {
-                    url: error.triggeredBy?.pageUrl,
-                    title: error.triggeredBy?.pageTitle
+                    url: error.data.triggeredBy?.pageUrl,
+                    title: error.data.triggeredBy?.pageTitle
                 }
             })),
             recentUserActions: this.userActions.slice(-20)
@@ -332,7 +324,7 @@ class BusinessErrorMonitor {
 
     getMonitoringDuration() {
         if (this.userActions.length === 0) return '0分钟';
-        
+        debugger
         const firstAction = new Date(this.userActions[0].timestamp);
         const lastAction = new Date(this.userActions[this.userActions.length - 1].timestamp);
         const durationMs = lastAction - firstAction;
@@ -341,6 +333,18 @@ class BusinessErrorMonitor {
         return minutes > 60 ? 
             `${Math.floor(minutes / 60)}小时${minutes % 60}分钟` : 
             `${minutes}分钟`;
+    }
+
+    // 获取统计信息
+    getStats() {
+        return {
+            totalErrors: this.businessErrors.length,
+            totalActions: this.userActions.length,
+            errorRate: this.calculateErrorRate(),
+            lastError: this.businessErrors[this.businessErrors.length - 1],
+            lastAction: this.userActions[this.userActions.length - 1],
+            timestamp: new Date().toISOString()
+        };
     }
 
     calculateErrorRate() {
@@ -356,10 +360,10 @@ class BusinessErrorMonitor {
             
             if (error.type === 'NETWORK_ERROR') {
                 type = 'NETWORK_ERROR';
-            } else if (error.responseData?.code) {
-                type = `CODE_${error.responseData.code}`;
-            } else if (error.responseData?.message) {
-                const msg = error.responseData.message;
+            } else if (error.data.responseData?.code) {
+                type = `CODE_${error.data.responseData.code}`;
+            } else if (error.data.responseData?.message) {
+                const msg = error.data.responseData.message;
                 if (msg.includes('超时')) type = 'TIMEOUT';
                 else if (msg.includes('权限')) type = 'AUTH_ERROR';
                 else if (msg.includes('参数')) type = 'PARAM_ERROR';
@@ -377,7 +381,7 @@ class BusinessErrorMonitor {
     getTopErrorAPIs() {
         const apiCounts = {};
         this.businessErrors.forEach(error => {
-            const path = new URL(error.url).pathname;
+            const path = error.data.url;
             apiCounts[path] = (apiCounts[path] || 0) + 1;
         });
         
@@ -390,9 +394,9 @@ class BusinessErrorMonitor {
     getMostCommonErrors() {
         const errorMessages = {};
         this.businessErrors.forEach(error => {
-            const msg = error.responseData?.message || 
-                       error.responseData?.msg || 
-                       error.responseData?.error || 
+            const msg = error.data.responseData?.message || 
+                       error.data.responseData?.msg || 
+                       error.data.responseData?.error || 
                        '未知错误';
             errorMessages[msg] = (errorMessages[msg] || 0) + 1;
         });

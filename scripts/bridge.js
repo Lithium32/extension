@@ -1,4 +1,13 @@
+// 现代网页（特别是 React、Vue 等框架）和浏览器扩展的 content script 运行在不同的 JavaScript 执行环境中
+// 方案一：使用 world: "MAIN";方案二：在 content.js 中添加脚本注入到页面主上下文中.
+// 在 world: "MAIN" 模式下，content script 运行在页面的主上下文中，
+// 但 chrome.runtime API 只在扩展的隔离上下文中可用
+// 在主世界中只能使用 window.postMessage 通信
 // bridge.js - 在隔离世界中运行，可以访问 chrome API
+// 在 world: "MAIN" 的 content.js 中不能直接引用 world: "ISOLATED" 的 bridge.js 中的函数，
+// 因为它们运行在不同的 JavaScript 上下文中。需要使用消息传递机制：window.postMessage
+// bridge.js同时监听来自主世界（用于将消息从content发送到background）
+// 和来自background（用于将消息从background发送到主世界）的消息
 class MessageBridge {
     constructor() {
         this.setupMessageListener();

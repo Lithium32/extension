@@ -3,12 +3,12 @@ class UserActionTracker {
     constructor() {
         this.lastUserAction = null;
         this.actionHistory = [];
-        this.setupEventListeners();
+        this.setupEventListeners(); // 设置需要监听的事件
         this.interceptNetworkRequests();
         this.setupMessageListener();
         this.pendingRequests = new Map(); // 用于处理响应
 
-        console.log('🎯 UserActionTracker initialized');
+        console.log('🎯 UserActionTracker initialized In Main World');
     }
 
     // 设置消息监听器，接收来自桥接的响应
@@ -16,20 +16,12 @@ class UserActionTracker {
         window.addEventListener('message', (event) => {
             if (event.source !== window) return;
             if (event.data && event.data.source === 'BRIDGE_SCRIPT') {
-                console.log('📨 收到桥接响应:', event.data);
+                console.log('📨 收到桥接消息:', event.data);
                 
                 // 处理响应（如果需要）
                 // this.handleBridgeResponse(event.data);
             }
         });
-    }
-
-    handleBridgeResponse(response) {
-        // 这里可以处理来自 background 的响应
-        // 例如：确认消息已送达等
-        if (response.type === 'RESPONSE_USER_ACTION') {
-            console.log('✅ 用户操作已记录到 background');
-        }
     }
 
     // 发送消息到桥接脚本
@@ -142,14 +134,11 @@ class UserActionTracker {
         }
 
         // 发送到 background script
-        chrome.runtime.sendMessage({
-            type: 'USER_ACTION',
-            action: actionInfo
+        this.sendToBridge('USER_ACTION', {
+            ...actionInfo,
         });
-
-        if (window.debugMode) {
-            console.log('🎯 User Action:', actionInfo);
-        }
+       
+        console.log('🎯 User Action:', actionInfo);
     }
 
     handleAPIResponse(responseData) {
@@ -171,7 +160,7 @@ class UserActionTracker {
             type: element.type,
             placeholder: element.placeholder,
             text: element.textContent?.substring(0, 100).trim(),
-            value: element.value ? this.maskSensitiveData(element.value) : undefined,
+            value: element.value,
             xpath: this.getXPath(element),
             cssSelector: this.getCssSelector(element)
         };
@@ -247,15 +236,15 @@ class UserActionTracker {
         return path.join(' > ');
     }
 
-    maskSensitiveData(value) {
-        if (!value) return value;
+    // maskSensitiveData(value) {
+    //     if (!value) return value;
         
-        const str = String(value);
-        if (str.length <= 2) return str;
+    //     const str = String(value);
+    //     if (str.length <= 2) return str;
         
-        // 简单脱敏处理
-        return str.substring(0, 1) + '*'.repeat(Math.min(str.length - 2, 6)) + str.substring(str.length - 1);
-    }
+    //     // 简单脱敏处理
+    //     return str.substring(0, 1) + '*'.repeat(Math.min(str.length - 2, 6)) + str.substring(str.length - 1);
+    // }
 
     getStackTrace() {
         try {
@@ -316,14 +305,16 @@ class UserActionTracker {
 
             this.addEventListener('error', function() {
                 console.log('❌ XHR Network error:', this._url);
-                messageBridge.sendToBackground({
+                self.handleAPIResponse({
                     type: 'NETWORK_ERROR',
                     data: {
                         url: this._url,
                         method: this._method,
+                        httpStatus: this.status,
                         error: 'XHR Network error',
                         triggeredBy: self.lastUserAction,
-                        timestamp: new Date().toISOString()
+                        timestamp: new Date().toISOString(),
+                        type: 'xhr'
                     }
                 });
             });
@@ -430,78 +421,50 @@ class UserActionTracker {
         
         try {
             if (typeof body === 'string') {
-                return this.filterSensitiveData(JSON.parse(body));
+                return JSON.parse(body);
             } else if (body instanceof FormData) {
                 const data = {};
                 for (let [key, value] of body.entries()) {
-                    data[key] = this.maskSensitiveData(value);
+                    data[key] = value;
                 }
                 return data;
             } else if (body instanceof URLSearchParams) {
                 const data = {};
                 for (let [key, value] of body.entries()) {
-                    data[key] = this.maskSensitiveData(value);
+                    data[key] = value;
                 }
                 return data;
             }
         } catch (error) {
-            // 解析失败，返回原始数据（脱敏后）
-            return { _raw: this.maskSensitiveData(String(body)) };
+            // 解析失败，返回原始数据
+            return { _raw: String(body) };
         }
         
         return null;
     }
 
-    filterSensitiveData(data) {
-        if (!data || typeof data !== 'object') return data;
+    // filterSensitiveData(data) {
+    //     if (!data || typeof data !== 'object') return data;
         
-        const sensitiveFields = ['password', 'token', 'authorization', 'cookie', 'secret', 'credit', 'card'];
-        const filtered = Array.isArray(data) ? [...data] : { ...data };
+    //     const sensitiveFields = ['password', 'token', 'authorization', 'cookie', 'secret', 'credit', 'card'];
+    //     const filtered = Array.isArray(data) ? [...data] : { ...data };
         
-        sensitiveFields.forEach(field => {
-            if (filtered[field]) {
-                filtered[field] = '***FILTERED***';
-            }
-        });
+    //     sensitiveFields.forEach(field => {
+    //         if (filtered[field]) {
+    //             filtered[field] = '***FILTERED***';
+    //         }
+    //     });
         
-        // 递归处理嵌套对象
-        Object.keys(filtered).forEach(key => {
-            if (filtered[key] && typeof filtered[key] === 'object') {
-                filtered[key] = this.filterSensitiveData(filtered[key]);
-            }
-        });
+    //     // 递归处理嵌套对象
+    //     Object.keys(filtered).forEach(key => {
+    //         if (filtered[key] && typeof filtered[key] === 'object') {
+    //             filtered[key] = this.filterSensitiveData(filtered[key]);
+    //         }
+    //     });
         
-        return filtered;
-    }
+    //     return filtered;
+    // }
 
-    setupMessageListener() {
-        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-            switch (request.type) {
-                case 'GET_LAST_ACTION':
-                    sendResponse(this.lastUserAction);
-                    break;
-                    
-                case 'GET_ACTION_HISTORY':
-                    sendResponse(this.actionHistory.slice(-10));
-                    break;
-                    
-                case 'ENABLE_DEBUG':
-                    window.debugMode = true;
-                    console.log('🐛 Debug mode enabled');
-                    sendResponse({ status: 'debug_enabled' });
-                    break;
-                    
-                case 'DISABLE_DEBUG':
-                    window.debugMode = false;
-                    console.log('🐛 Debug mode disabled');
-                    sendResponse({ status: 'debug_disabled' });
-                    break;
-                    
-                default:
-                    sendResponse({ status: 'unknown_command' });
-            }
-        });
-    }
 }
 
 // 初始化
