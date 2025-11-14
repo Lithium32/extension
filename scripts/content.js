@@ -381,6 +381,7 @@ class UserActionTracker {
 
 }
 
+
 // 初始化
 const userActionTracker = new UserActionTracker();
 window.userActionTracker = userActionTracker;

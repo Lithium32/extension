@@ -11,16 +11,20 @@ import {getActionDescription} from './GetReportHandler.js';
 class ApiResponseHandler extends MessageHandler {
     constructor() {
         super();
+        this.handleType = ['API_RESPONSE'];
         this.errorConfig = ErrorConfig.getErrorConfig();
         this.userActions = null;
         this.businessErrors = null;
         console.log('Current Error Config:', this.errorConfig);
     }
-    supports() {
-        return 'API_RESPONSE';
+    supports(messageType) {
+        if (messageType) {
+            return this.handleType.includes(messageType);
+        }
+        return false;
     }
 
-    async handle(data, context) {
+    async handle(data, context, type) {
         this.userActions = context.userActions;
         this.businessErrors = context.businessErrors;
         console.log('📨 处理API响应:', data.data.url);

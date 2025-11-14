@@ -7,13 +7,17 @@ import MessageHandler from '../MessageHandler.js';
 class UserActionHandler extends MessageHandler {
     constructor() {
         super();
+        this.handleType = ['USER_ACTION'];
     }
 
-    supports() {
-        return 'USER_ACTION';
+    supports(messageType) {
+        if (messageType) {
+            return this.handleType.includes(messageType);
+        }
+        return false;
     }
 
-    async handle(data, context) {
+    async handle(data, context, type) {
         console.log('🎯 处理用户操作:', data);
         const action = data;
         if (context && Array.isArray(context.userActions)) {

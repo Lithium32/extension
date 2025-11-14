@@ -14,7 +14,7 @@ class MessageHandler {
      * @param {Object} context 处理上下文（BusinessErrorMonitor实例）
      * @returns {Promise<Object>} 响应结果
      */
-    async handle(data, context) {
+    async handle(data, context, type) {
         throw new Error('必须实现handle方法');
     }
 
@@ -22,7 +22,7 @@ class MessageHandler {
      * 支持的消息类型
      * @returns {messageType} 消息类型
      */
-    supports() {
+    supports(messageType) {
         throw new Error('必须实现supports方法');
     }
 }

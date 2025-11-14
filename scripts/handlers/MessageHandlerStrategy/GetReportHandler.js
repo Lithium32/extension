@@ -7,22 +7,31 @@ import MessageHandler from '../MessageHandler.js';
 class GetReportHandler extends MessageHandler {
     constructor() {
         super();
+        this.handleType = ['GET_REPORT','DOWNLOAD_REPORT'];
         this.userActions = null;
         this.businessErrors = null;
     }
-    supports() {
-        return 'GET_REPORT';
+    supports(messageType) {
+        if (messageType) {
+            return this.handleType.includes(messageType);
+        }
+        return false;
     }
 
-    async handle(data, context) {
+    async handle(data, context, type) {
         console.log('📋 处理报告生成请求');
         this.userActions = context.userActions;
         this.businessErrors = context.businessErrors;
-        const report = this.generateReport();
-        return {
-            status: "success",
-            data: report
-        };
+        switch(type) {
+            case 'GET_REPORT':
+                const report = this.generateReport();
+                return  {
+                    status: "success",
+                    data: report
+                };
+            default:
+                break;
+        }
     }
 
     generateReport() {

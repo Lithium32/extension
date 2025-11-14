@@ -58,6 +58,7 @@ class BusinessErrorMonitor {
      */
     async handleMessage(message, sender) {
         const { type, data = {} } = message;
+        // 查询支持处理该消息类型的处理器
         const handler = this.handlerRegistry.getHandler(type);
         if (!handler) {
             console.warn(`⚠️ 未找到消息处理器: ${type}`);
@@ -65,7 +66,7 @@ class BusinessErrorMonitor {
         }
         try {
             console.log(`🎯 使用处理器: ${handler.constructor.name} 处理消息: ${type}`);
-            const result = await handler.handle(data, this);
+            const result = await handler.handle(data, this, type);
             console.log(`✅ 消息处理完成: ${type}`, result.status);
             return result;
         } catch (error) {
@@ -92,26 +93,6 @@ class BusinessErrorMonitor {
             return result.businessMonitorData;
         } catch (error) {
             return { userActions: [], businessErrors: [] };
-        }
-    }
-
-    async downloadReport() {
-        const report = this.generateReport();
-        const blob = new Blob([JSON.stringify(report, null, 2)], { 
-            type: 'application/json' 
-        });
-        
-        const url = URL.createObjectURL(blob);
-        const filename = `business-error-report-${new Date().toISOString().split('T')[0]}.json`;
-        
-        try {
-            await chrome.downloads.download({
-                url: url,
-                filename: filename,
-                saveAs: true
-            });
-        } catch (error) {
-            console.error('Download failed:', error);
         }
     }
 }
