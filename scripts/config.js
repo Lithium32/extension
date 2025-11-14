@@ -1,51 +1,79 @@
 // 可配置的业务错误规则
-const BusinessErrorConfig = {
-  // 通用业务错误码模式
-  errorCodePatterns: [
-    // 1. 字段匹配模式
-    { field: 'code', patterns: [/^[45]\d{4}$/, /^ERROR_/] }, // 5位数字错误码或ERROR_开头
-    { field: 'status', patterns: [/^error$/, /^fail$/i] },
-    { field: 'success', patterns: [false] }, // success: false
-    { field: 'result', patterns: [false, 0] }, // result: false/0
-    
-    // 2. 错误消息模式
-    { field: 'message', patterns: [/错误/, /失败/, /invalid/i, /timeout/i, /expired/i] },
-    { field: 'msg', patterns: [/错误/, /失败/, /invalid/i, /timeout/i, /expired/i] },
-    
-    // 3. 自定义匹配函数
-    { custom: (data) => {
-      return data?.hasOwnProperty('errorCode') && data.errorCode !== 0;
-    }}
+export const ErrorConfig = {
+  // 业务错误码模式
+  errorPatterns: [
+      // 字段匹配模式
+      { field: 'code', patterns: [/^[45]\d{4}$/, /^ERROR_/] },
+      { field: 'status', patterns: [/^error$/, /^fail$/i] },
+      { field: 'success', patterns: [false, 'false', 0] },
+      { field: 'result', patterns: [false, 'false', 0, 'fail'] },
+      
+      // 错误消息模式
+      { field: 'message', patterns: [/错误/, /失败/, /invalid/i, /timeout/i, /expired/i, /denied/i] },
+      { field: 'msg', patterns: [/错误/, /失败/, /invalid/i, /timeout/i, /expired/i, /denied/i] },
+      { field: 'error', patterns: [/.*/] }, // 只要有error字段就认为是错误
+      
+      // 自定义匹配函数
+      { 
+          custom: (data) => {
+              return (data?.hasOwnProperty('success') && !data.success) ||
+                      (data?.hasOwnProperty('code') && data.code !== 0 && data.code !== 200 && data.code !== '0000');
+          }
+      }
   ],
-
-  // 特定接口的业务规则
-  apiSpecificRules: {
-    '/api/login': {
-      successField: 'success',
-      codeField: 'code',
-      successValues: [true, 1],
-      errorValues: [false, 0],
-      errorCodes: [40001, 40002, 40003] // 特定错误码
-    },
-    '/api/payment': {
-      successField: 'result',
-      codeField: 'errCode',
-      successValues: ['SUCCESS'],
-      errorValues: ['FAILED', 'TIMEOUT']
-    }
-  },
-
-  // 忽略的接口（如日志上报、埋点等）
+  // 忽略的接口
   ignoreUrls: [
-    /\/log\//,
-    /\/tracking\//,
-    /\/analytics\//,
-    /\.jpg$|\.png$|\.gif$|\.css$|\.js$/
+      /\.(jpg|jpeg|png|gif|svg|css|js|woff|woff2|ttf|eot)$/i,
+      /\/log\//,
+      /\/analytics\//,
+      /\/tracking\//,
+      /\/monitoring\//
   ],
 
-  // 敏感信息过滤
-  sensitiveFields: ['password', 'token', 'authorization', 'cookie', 'secret']
+ 	// 获取配置的方法
+    getErrorConfig() {
+        return {
+            errorPatterns: this.errorPatterns,
+            ignoreUrls: this.ignoreUrls,
+        };
+    },
+
+	isBusinessError(url, responseData) {
+        debugger
+        // 检查是否在忽略列表
+        if (this.ignoreUrls.some(pattern => pattern.test(url))) {
+            return false;
+        }
+
+        // 检查通用错误模式
+        return this.checkGeneralPatterns(responseData);
+    },
+
+    checkGeneralPatterns(data) {
+        if (!data || typeof data !== 'object') return false;
+
+        for (const pattern of this.errorPatterns) {
+            if (pattern.field && data[pattern.field] !== undefined) {
+                const value = data[pattern.field];
+                if (pattern.patterns.some(p => 
+                    p instanceof RegExp ? p.test(String(value)) : p === value
+                )) {
+                    return true;
+                }
+            }
+            
+            if (pattern.custom && pattern.custom(data)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
 };
+
+// 导出默认配置
+export default ErrorConfig;
 
 // 判断是否为业务错误
 function isBusinessError(url, responseData) {
