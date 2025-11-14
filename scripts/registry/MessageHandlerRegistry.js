@@ -21,7 +21,7 @@ class MessageHandlerRegistry {
             throw new Error('处理器必须实现handle方法');
         }
         // 注册该消息类型的处理器
-        const type = handler.supports();
+        const type = handler.handleType[0];
         if(!this.handlers.get(type)){
             this.handlers.set(type, handler);
             console.log(`✅ 注册消息处理器: ${type} -> ${handler.constructor.name}`);
@@ -38,12 +38,17 @@ class MessageHandlerRegistry {
     }
 
     /**
-     * 获取消息处理器
+     * 获取支持处理该消息类型的消息处理器
      * @param {string} messageType 消息类型
      * @returns {MessageHandler|null} 消息处理器
      */
     getHandler(messageType) {
-        return this.handlers.get(messageType) || this.defaultHandler;
+        for (const handler of this.handlers.values()) {
+            if (handler.supports(messageType)) {
+                return handler;
+            }
+        }
+        // return this.handlers.get(messageType) || this.defaultHandler;
     }
 
     /**
