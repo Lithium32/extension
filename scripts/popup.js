@@ -239,9 +239,27 @@ class PopupManager {
     }
 
     async downloadReport() {
-        const response = await this.sendMessageToBackground('DOWNLOAD_REPORT');
+        const response = await this.sendMessageToBackground('GET_REPORT');
         if (response.status === 'success') {
-            this.showMessage('开始下载报告...');
+            const report = response.data;
+            const blob = new Blob([JSON.stringify(report, null, 2)], { 
+                type: 'application/json' 
+            });
+            
+            const url = URL.createObjectURL(blob);
+            const filename = `business-error-report-${new Date().toISOString().split('T')[0]}.json`;
+            
+            // 创建临时链接进行下载
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            // 清理 URL
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+            // this.showMessage('开始下载报告...');
         } else {
             this.showError('下载失败: ' + response.message);
         }
