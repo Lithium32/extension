@@ -1,15 +1,12 @@
 {
-  "name": "Hello Extensions",
-  "description": "Base Level Extension",
+  "name": "chrome-extension-monitor",
+  "description": "Chrome Extension for API Error Monitoring",
   "version": "1.0",
   "manifest_version": 3,
   "action": {
     "default_popup": "popup.html",
     "default_icon": "./image/icon.png"
   },
-   "host_permissions": [
-    "*://*.kdtx-test.itheima.net/*"
-  ],
   "permissions": [
     "storage",
     "webRequest",
@@ -23,22 +20,31 @@
   ],
   "content_scripts": [
     {
-      "js": ["./scripts/content_fetch.js"],
-      "matches": [
-        "http://kdtx-test.itheima.net/*"
+      "js": [
+        "content.js"
       ],
-      "run_at": "document_start", 
-       "world": "MAIN",
+      "matches": [
+        "http://kdtx-test.itheima.net/*",
+        "https://item.jd.com/*"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "type":"module",
       "all_frames": true
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["./scripts/bridge.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "bridge.js"
+      ],
       "run_at": "document_start",
-      "world": "ISOLATED"  //隔离世界
+      "world": "ISOLATED" //隔离世界
     }
   ],
   "background": {
-    "service_worker": "background_fetch.js"
+    "service_worker": "background.js",
+    "type": "module" // 启用 ES6 模块支持
   }
 }
