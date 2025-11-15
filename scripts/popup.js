@@ -1,6 +1,22 @@
 // popup.js
+// 立即检查并设置全局标志
+if (window.popupScriptExecuted) {
+    console.error('🚨 popup.js 已经被执行过了！阻止重复执行');
+    // 直接退出，不执行任何代码
+    throw new Error('popup.js already executed');
+}
+
+window.popupScriptExecuted = true;
+console.log('✅ popup.js 开始执行 - 首次加载');
+
+
 class PopupManager {
     constructor() {
+        if (PopupManager.instance) {
+            return PopupManager.instance;
+        }
+        PopupManager.instance = this;
+        console.log('Creating new PopupManager instance.');
         this.currentTab = 'errors';
         this.init();
     }
@@ -24,9 +40,14 @@ class PopupManager {
             this.loadData();
         });
 
+        console.trace('事件监听器绑定位置'); // 这会显示调用堆栈
         document.getElementById('downloadBtn').addEventListener('click', () => {
+            console.log('click on 下载报告...');
+            console.trace('点击事件触发堆栈'); // 查看点击时的调用堆栈
             this.downloadReport();
         });
+
+       
 
         document.getElementById('clearBtn').addEventListener('click', () => {
             this.clearData();
@@ -317,6 +338,13 @@ class PopupManager {
 }
 
 // 初始化 popup
+let popupManagerInstance = null;
 document.addEventListener('DOMContentLoaded', () => {
-    new PopupManager();
+    console.log('Popup DOMContentLoaded');
+    if (popupManagerInstance) {
+        console.warn('PopupManager 已经存在实例，跳过创建');
+        return;
+    }
+    
+    popupManagerInstance = new PopupManager();
 });
