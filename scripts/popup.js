@@ -1,9 +1,12 @@
 // popup.js
 // 立即检查并设置全局标志
 if (window.popupScriptExecuted) {
-    console.error('🚨 popup.js 已经被执行过了！阻止重复执行');
     // 直接退出，不执行任何代码
-    throw new Error('popup.js already executed');
+    try {
+        throw new Error('popup.js already executed');
+    } catch (error) {
+        console.log('🚨 popup.js 已经被执行过了！阻止重复执行');
+    }
 }
 
 window.popupScriptExecuted = true;
