@@ -4,14 +4,19 @@
   "version": "1.0",
   "manifest_version": 3,
   "action": {
-    "default_popup": "popup.html",
+    // "default_popup": "popup.html",
     "default_icon": "./image/icon.png"
+  },
+  "side_panel": {
+    "default_path": "popup.html"
   },
   "permissions": [
     "storage",
     "webRequest",
     "notifications",
     "activeTab",
+    "scripting",
+    "sidePanel",
     "downloads"
   ],
   "host_permissions": [

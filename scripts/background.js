@@ -107,3 +107,8 @@ businessMonitor.loadFromStorage();
 self.businessMonitor = businessMonitor;
 
 console.log('🚀 Background script loaded successfully');
+
+// 当用户点击浏览器工具栏上的扩展图标时，打开侧边栏
+chrome.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch((error) => console.error(error));
