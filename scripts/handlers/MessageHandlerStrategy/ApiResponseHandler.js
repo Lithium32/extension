@@ -41,7 +41,7 @@ class ApiResponseHandler extends MessageHandler {
     }
 
     
-    captureBusinessError(errorData) {
+    async captureBusinessError(errorData) {
         const errorRecord = {
             ...errorData,
             id: randomUtils.generateId(),
@@ -62,6 +62,27 @@ class ApiResponseHandler extends MessageHandler {
             version: '1.0'
         };
         storageUtils.saveToLocalStorage('businessMonitorData', data);
+
+        try {
+            // 捕获当前可见标签页的截图
+            const dataUrl = await chrome.tabs.captureVisibleTab(null, {
+            format: 'png' // 支持 'png'、'jpeg'、'webp'
+            });
+            
+            // 处理截图结果
+            console.log('截图成功！');
+            
+            // 这里可以添加后续处理，例如：
+            // 1. 在新窗口中显示截图
+            // 2. 下载截图
+            // 3. 将截图复制到剪贴板
+            chrome.downloads.download({
+                url: dataUrl,
+                filename: 'screenshot.png'
+            });
+        } catch (error) {
+            console.error('截图失败:', error);
+        }
 
         this.sendRealTimeNotification(errorRecord);
         
