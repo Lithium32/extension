@@ -2,6 +2,10 @@ import path from "path";
 import { fileURLToPath } from "url";
 import CopyWebpackPlugin from "copy-webpack-plugin";
 import HtmlWebpackPlugin from "html-webpack-plugin";
+import MiniCssExtractPlugin from "mini-css-extract-plugin";
+import RemoveEmptyScriptsPlugin from "webpack-remove-empty-scripts";
+
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,6 +17,7 @@ export default {
     background: "./scripts/background.js",
     popup: "./scripts/popup.js",
 	bridge: "./scripts/bridge.js",
+	style: "./scripts/css/style.css"
   },
   output: {
     path: path.resolve(__dirname, "dist"),
@@ -33,11 +38,15 @@ export default {
       },
       {
         test: /\.css$/,
-        use: ["style-loader", "css-loader"],
+        use: [
+          MiniCssExtractPlugin.loader, // 负责提取 CSS 到独立文件
+          'css-loader'                 // 解析 CSS 文件中的 @import 和 url()
+        ]
       },
     ],
   },
   plugins: [
+	new RemoveEmptyScriptsPlugin(), // 清理空JS文件
     new CopyWebpackPlugin({
       patterns: [
         { from: "./image", to: "image" },
@@ -54,6 +63,9 @@ export default {
       template: "./scripts/popup.html",
       chunks: ["popup"],
     }),
+    new MiniCssExtractPlugin({
+      filename: 'style.css' // 定义输出 CSS 文件的名称
+    })
   ],
   devtool: "cheap-source-map",
   resolve: {
